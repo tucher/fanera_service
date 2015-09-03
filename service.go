@@ -1,9 +1,3 @@
-// Copyright 2012 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-// +build windows
-
 package main
 
 import (
@@ -22,12 +16,10 @@ type myservice struct{}
 func (m *myservice) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
 	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown | svc.AcceptPauseAndContinue
 	changes <- svc.Status{State: svc.StartPending}
-	// fasttick := time.Tick(500 * time.Millisecond)
-	// slowtick := time.Tick(2 * time.Second)
-	// tick := fasttick
+
+	go startFanera()
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 
-	go startHTTP()
 loop:
 	for {
 		select {
