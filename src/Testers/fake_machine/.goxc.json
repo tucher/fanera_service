@@ -1,0 +1,15 @@
+{
+	"Arch": "amd64",
+	"BuildConstraints": "darwin",
+	"PackageVersion": "0.0.1",
+	"PrereleaseInfo": "snapshot",
+	"TaskSettings": {
+		"bintray": {
+			"downloadspage": "downloads.md",
+			"package": "fanera_fake_machine",
+			"repository": "go_experiments",
+			"subject": "tucher"
+		}
+	},
+	"ConfigVersion": "0.9"
+}

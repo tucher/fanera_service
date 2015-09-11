@@ -1,1 +1,2 @@
-CGO_LDFLAGS="-static"  CGO_ENABLED=1 CC=i686-w64-mingw32.static-gcc CXX=i686-w64-mingw32.static-g++ CPATH="/Users/Tucher/mxe/usr/i686-w64-mingw32.static/include" GOOS=windows GOARCH=386 go build -v -x --ldflags '-extldflags "-static -v" -extld=$CC' -o NN_service.exe
+#CGO_LDFLAGS="-static"  CGO_ENABLED=1 CC=i686-w64-mingw32.static-gcc CXX=i686-w64-mingw32.static-g++ CPATH="/Users/Tucher/mxe/usr/i686-w64-mingw32.static/include" GOOS=windows GOARCH=386 go build -v -x --ldflags '-extldflags "-static -v" -extld=$CC' -o NN_service.exe
+CGO_ENABLED=1  GOOS=windows GOARCH=386 go build -o NN_service.exe

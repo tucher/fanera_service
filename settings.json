@@ -1,7 +1,0 @@
-{
-    "DB_ip": "localhost", 
-    "DB_port": 13306, 
-    "DB_login": "root", 
-    "DB_pass": "plyfanera", 
-    "DB_name": "machines_data"
-}
