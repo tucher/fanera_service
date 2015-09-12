@@ -13,7 +13,7 @@ type Machine struct {
 	ID        int
 	Ip        string
 	TableName string
-	UniqueId  int
+	UniqueId  int16
 	Title     string
 }
 
@@ -28,8 +28,10 @@ type MachineFrameField struct {
 }
 
 type MachineInfo struct {
-	M      Machine
-	Fields []MachineFrameField
+	M                Machine
+	Fields           []MachineFrameField
+	InsertRowQuery   string
+	CreateTableQuery string
 }
 
 var machineInfos []MachineInfo
@@ -86,34 +88,37 @@ func downloadMachinesFrameSchema() {
 
 		var fields []MachineFrameField
 		ServerDBHandle.Where(&MachineFrameField{MachineId: machine.ID}).Find(&fields)
-		// for f_index, field := range fields {
-		// 	fmt.Printf("    %v) %+v\n", f_index, field)
-		// }
-		machineInfos = append(machineInfos, MachineInfo{M: machine, Fields: fields})
 
+		createTableQuery := fmt.Sprintf("CREATE TABLE %v ( `id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, timestamp TIMESTAMP, ", machine.TableName)
+		insertQuery := fmt.Sprintf("INSERT INTO %v ( timestamp, ", machine.TableName)
+
+		tmpStr := fmt.Sprintf("VALUES('%%%v%%', ", "timestamp")
+		for fieldIndex, field := range fields {
+			if fieldIndex == len(fields)-1 {
+				createTableQuery += fmt.Sprintf("%v %v );", field.FieldName, field.FieldType)
+				tmpStr += fmt.Sprintf("'%%%v%%');", field.FieldName)
+				insertQuery += field.FieldName + ") " + tmpStr
+			} else {
+				createTableQuery += fmt.Sprintf("%v %v, ", field.FieldName, field.FieldType)
+				insertQuery += field.FieldName + ", "
+				tmpStr += fmt.Sprintf("'%%%v%%' , ", field.FieldName)
+			}
+		}
+
+		machineInfos = append(machineInfos, MachineInfo{M: machine, Fields: fields, InsertRowQuery: insertQuery, CreateTableQuery: createTableQuery})
+		// fmt.Printf("\n\n%v\n%v\n\n", insertQuery, createTableQuery)
 		if _, ok := tableNames[machine.TableName]; ok == false {
 			createTable(machineInfos[len(machineInfos)-1])
 		} else {
-			fmt.Printf("table %v exists\n", machine.TableName)
+			// fmt.Printf("table %v exists\n", machine.TableName)
 		}
 	}
 
 }
 
 func createTable(mInfo MachineInfo) {
-
-	var query string
-
-	query = fmt.Sprintf("CREATE TABLE %v ( `id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY , timestamp TIMESTAMP , ", mInfo.M.TableName)
-	for fieldIndex, field := range mInfo.Fields {
-		if fieldIndex == len(mInfo.Fields)-1 {
-			query += fmt.Sprintf("%v %v );", field.FieldName, field.FieldType)
-		} else {
-			query += fmt.Sprintf("%v %v , ", field.FieldName, field.FieldType)
-		}
-	}
-	fmt.Printf("Executing SQL: %v\n", query)
-	_, err := ServerDBHandle.DB().Query(query)
+	fmt.Printf("Creating table %v\n", mInfo.M.TableName)
+	_, err := ServerDBHandle.DB().Query(mInfo.CreateTableQuery)
 	if err != nil {
 		fmt.Println("Cant exec sql: ", err.Error())
 	}
