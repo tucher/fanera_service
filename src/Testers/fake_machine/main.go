@@ -116,7 +116,7 @@ type DBSettings struct {
 
 var globalDBSettings DBSettings
 var S ServerSettings
-var delay = int32(500)
+var delay = int32(10000)
 var totalSent int
 var activeConnections int
 

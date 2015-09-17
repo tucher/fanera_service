@@ -3,27 +3,30 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"strings"
 	"time"
 )
 
 func startMainServer() {
+	log.SetOutput(wsHub)
 	l, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%v", globalServerSettings.Port_to_listen))
 	if err != nil {
-		fmt.Println("Error listening:", err.Error())
+		logger.Println("Error listening:", err.Error())
 	}
 	go counter()
 	// Close the listener when the application closes.
 	defer l.Close()
-	fmt.Println("Listening on " + fmt.Sprintf("0.0.0.0:%v", globalServerSettings.Port_to_listen))
+	logger.Println("Listening on " + fmt.Sprintf("0.0.0.0:%v", globalServerSettings.Port_to_listen))
 	for {
 		// Listen for an incoming connection.
 		conn, err := l.Accept()
 		if err != nil {
-			fmt.Println("Error accepting: ", err.Error())
+			logger.Println("Error accepting: ", err.Error())
 		} else {
 			// Handle connections in a new goroutine.
 			conn.SetDeadline(time.Now().Add(5 * time.Second))
@@ -41,11 +44,13 @@ func handleRequest(conn net.Conn) {
 	var buf bytes.Buffer
 	bufLen, err := io.Copy(&buf, conn)
 	if err != nil {
-		// fmt.Println("Error reading:", err.Error())
+		// logger.Println("Error reading:", err.Error())
 	}
+	fullRemoteAddr := conn.RemoteAddr().String()
 	conn.Close()
 
-	fmt.Println("Read ", bufLen, " bytes from ", ipString)
+	var dataBytes = buf.Bytes()
+	logger.Printf("%v -> %v\n", fullRemoteAddr, hex.EncodeToString(dataBytes))
 
 	if bufLen >= 2 {
 
@@ -53,7 +58,7 @@ func handleRequest(conn net.Conn) {
 		for mIndex, machine := range machineInfos {
 			//searching by IP
 			if ipString == machine.M.Ip {
-				fmt.Println("Found machine by IP address: ", machine.M.TableName)
+				logger.Printf("%v -> detected '%v' by addr\n", fullRemoteAddr, machine.M.TableName)
 				machineIndex = mIndex
 				break
 			}
@@ -64,7 +69,7 @@ func handleRequest(conn net.Conn) {
 			binary.Read(&buf, binary.BigEndian, &id)
 			for mIndex, machine := range machineInfos {
 				if id == machine.M.UniqueId {
-					fmt.Println("Found machine by ID: ", machine.M.TableName)
+					logger.Printf("%v -> detected '%v' by ID\n", fullRemoteAddr, machine.M.TableName)
 					machineIndex = mIndex
 					break
 				}
@@ -72,14 +77,14 @@ func handleRequest(conn net.Conn) {
 		}
 
 		if machineIndex != -1 {
-
+			logMachine(machineInfos[machineIndex].M.TableName, hex.EncodeToString(dataBytes))
 			bytesNeeded := 0
 			for _, field := range machineInfos[machineIndex].Fields {
 				bytesNeeded += field.FieldSize
 
 			}
 
-			if bytesNeeded == buf.Len() {
+			if bytesNeeded <= buf.Len() {
 
 				valuesMap := make(map[string]string)
 				for _, field := range machineInfos[machineIndex].Fields {
@@ -109,19 +114,23 @@ func handleRequest(conn net.Conn) {
 
 				_, err = ServerDBHandle.DB().Exec(q)
 				if err != nil {
-					fmt.Println("Cant exec sql: ", err.Error())
+					logger.Println("Cant exec sql: ", err.Error())
 
 				} else {
-					fmt.Printf("%v added to %v\n\n", valuesMap, machineInfos[machineIndex].M.TableName)
+					// logger.Printf("%v added to %v\n", valuesMap, machineInfos[machineIndex].M.TableName)
+					logMachine(machineInfos[machineIndex].M.TableName, valuesMap)
+
 				}
 			} else {
-				fmt.Println(bytesNeeded, " bytes needed, has ", buf.Len(), " bytes")
+				logger.Printf("%v -> %v bytes needed, has %v \n", fullRemoteAddr, bytesNeeded, buf.Len())
+
 			}
 		} else {
-			fmt.Println("Machine cannot be identified")
+			logger.Printf("%v -> unidentified machine\n", fullRemoteAddr)
 		}
 	} else {
-		fmt.Println("Too few bytes received, something is wrong")
+		logger.Printf("%v -> Too few bytes received, something is wrong\n", fullRemoteAddr)
+
 	}
 	connCounterChan <- -1
 }
@@ -137,6 +146,6 @@ func counter() {
 		if incr == -1 {
 			totalIncoming += 1
 		}
-		fmt.Println("active: ", activeConnections, "total handled: ", totalIncoming)
+		// fmt.Println("active: ", activeConnections, "total handled: ", totalIncoming)
 	}
 }

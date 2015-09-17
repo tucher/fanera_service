@@ -2,29 +2,47 @@
 <head>
 <meta charset="UTF-8" />
 <script>
-        var serversocket = new WebSocket("ws://localhost:8080/echo");
- 
+        var serversocket = new WebSocket("ws://localhost:8080/ws");
+        var fieldMap = {};
         serversocket.onopen = function() {
                 serversocket.send("Connection init");
         }
  
         // Write message on receive
         serversocket.onmessage = function(e) {
-                document.getElementById('comms').innerHTML += "Received: " + e.data + "<br>";
+                var obj = JSON.parse(e.data);
+                if(fieldMap[obj.from] == undefined) {
+                        console.log("creating")
+
+                        var capt = document.createElement("div");        
+                        var t = document.createTextNode(obj.from);
+                        capt.appendChild(t);                               
+                        document.body.appendChild(capt);
+                        capt.style.fontSize = "xx-large";
+                        var txtArea = document.createElement("textarea"); 
+                        document.body.appendChild(txtArea);
+                        document.body.appendChild(document.createElement("br"));
+                        document.body.appendChild(document.createElement("br"));
+                        // txtArea.style.height = 'auto';
+                        txtArea.style.width = '900px';
+                        txtArea.style.height = '200px';
+                        txtArea.style.resize = 'vertical';
+                        fieldMap[obj.from] = txtArea
+                }
+                if(typeof(obj.msg) != 'string')
+                        fieldMap[obj.from].value += JSON.stringify(obj.msg, null, '\t') + "\n";
+                else
+                        fieldMap[obj.from].value += obj.msg+ "\n";
+
+                fieldMap[obj.from].scrollTop = fieldMap[obj.from].scrollHeight;
+                
         };
  
-        function senddata() {
-                var data = document.getElementById('sendtext').value;
-                serversocket.send(data);
-                document.getElementById('comms').innerHTML += "Sent: " + data + "<br>";
-        }
  
 </script>
 </head>
  
 <body>
-        <input id="sendtext" type="text" />
-        <input type="button" id="sendBtn" value="send" onclick="senddata()"></input>
         <div id='comms'></div>
 </body>
 </html>

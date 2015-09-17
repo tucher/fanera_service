@@ -48,13 +48,13 @@ func openDB() {
 	var err error
 	ServerDBHandle, err = gorm.Open("mysql", DSN)
 	if err != nil {
-		fmt.Println("Cant connect to DB: ", err.Error())
+		logger.Println("Cant connect to DB: ", err.Error())
 		return
 	}
 
 	ServerDBHandle.DB()
 	if err := ServerDBHandle.DB().Ping(); err != nil {
-		fmt.Println("Cant ping DB: ", err.Error())
+		logger.Println("Cant ping DB: ", err.Error())
 		return
 	}
 }
@@ -64,7 +64,7 @@ func downloadMachinesFrameSchema() {
 
 	result, err := ServerDBHandle.DB().Query("show tables;")
 	if err != nil {
-		fmt.Println("Cant exec sql: ", err.Error())
+		logger.Println("Cant exec sql: ", err.Error())
 		return
 	}
 
@@ -73,7 +73,7 @@ func downloadMachinesFrameSchema() {
 	for result.Next() {
 		var name string
 		if err := result.Scan(&name); err != nil {
-			fmt.Println("Cant scan result: ", err.Error())
+			logger.Println("Cant scan result: ", err.Error())
 			return
 		}
 		tableNames[name] = 0
@@ -110,16 +110,16 @@ func downloadMachinesFrameSchema() {
 		if _, ok := tableNames[machine.TableName]; ok == false {
 			createTable(machineInfos[len(machineInfos)-1])
 		} else {
-			// fmt.Printf("table %v exists\n", machine.TableName)
+			logger.Printf("table %v exists\n", machine.TableName)
 		}
 	}
 
 }
 
 func createTable(mInfo MachineInfo) {
-	fmt.Printf("Creating table %v\n", mInfo.M.TableName)
+	logger.Printf("Creating table %v\n", mInfo.M.TableName)
 	_, err := ServerDBHandle.DB().Query(mInfo.CreateTableQuery)
 	if err != nil {
-		fmt.Println("Cant exec sql: ", err.Error())
+		logger.Println("Cant exec sql: ", err.Error())
 	}
 }

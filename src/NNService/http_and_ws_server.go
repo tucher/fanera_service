@@ -1,82 +1,164 @@
 package main
 
 import (
-	"fmt"
 	"github.com/gorilla/websocket"
 	"net/http"
-	"os"
+	"time"
 )
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	pwd, err := os.Getwd()
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println(pwd)
-	fmt.Fprintf(w, pwd)
-}
+const (
+	// Time allowed to write a message to the peer.
+	writeWait = 10 * time.Second
 
-func print_binary(s []byte) {
-	fmt.Printf("Received b:")
-	for n := 0; n < len(s); n++ {
-		fmt.Printf("%d,", s[n])
-	}
-	fmt.Printf("\n")
-}
+	// Time allowed to read the next pong message from the peer.
+	pongWait = 60 * time.Second
+
+	// Send pings to peer with this period. Must be less than pongWait.
+	pingPeriod = (pongWait * 9) / 10
+
+	// Maximum message size allowed from peer.
+	maxMessageSize = 512
+)
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 }
 
-var wsConnections []*websocket.Conn
+// connection is an middleman between the websocket connection and the hub.
+type connection struct {
+	// The websocket connection.
+	ws *websocket.Conn
 
-func wsConnectionHandler(conn *websocket.Conn) {
+	// Buffered channel of outbound messages.
+	send chan []byte
+}
+
+// readPump pumps messages from the websocket connection to the hub.
+func (c *connection) readPump() {
+	defer func() {
+		wsHub.unregister <- c
+		c.ws.Close()
+	}()
+	c.ws.SetReadLimit(maxMessageSize)
+	c.ws.SetReadDeadline(time.Now().Add(pongWait))
+	c.ws.SetPongHandler(func(string) error { c.ws.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
-		messageType, p, err := conn.ReadMessage()
+		_, message, err := c.ws.ReadMessage()
 		if err != nil {
-			// return
+			break
 		}
+		wsHub.broadcast <- message
+	}
+}
 
-		print_binary(p)
+// write writes a message with the given message type and payload.
+func (c *connection) write(mt int, payload []byte) error {
+	c.ws.SetWriteDeadline(time.Now().Add(writeWait))
+	return c.ws.WriteMessage(mt, payload)
+}
 
-		err = conn.WriteMessage(messageType, p)
-		if err != nil {
-			return
+// writePump pumps messages from the hub to the websocket connection.
+func (c *connection) writePump() {
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		ticker.Stop()
+		c.ws.Close()
+	}()
+	for {
+		select {
+		case message, ok := <-c.send:
+			if !ok {
+				c.write(websocket.CloseMessage, []byte{})
+				return
+			}
+			if err := c.write(websocket.TextMessage, message); err != nil {
+				return
+			}
+		case <-ticker.C:
+			if err := c.write(websocket.PingMessage, []byte{}); err != nil {
+				return
+			}
 		}
 	}
 }
 
-func wsHandler(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		//log.Println(err)
+// serverWs handles websocket requests from the peer.
+func serveWs(w http.ResponseWriter, r *http.Request) {
+	logger.Println("Incoming conn")
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", 405)
 		return
 	}
-	wsConnections = append(wsConnections, conn)
-	go wsConnectionHandler(conn)
+	ws, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		logger.Println(err)
+		return
+	}
+	c := &connection{send: make(chan []byte, 256), ws: ws}
+	wsHub.register <- c
+	go c.writePump()
+	c.readPump()
+}
+
+type hub struct {
+	// Registered connections.
+	connections map[*connection]bool
+
+	// Inbound messages from the connections.
+	broadcast chan []byte
+
+	// Register requests from the connections.
+	register chan *connection
+
+	// Unregister requests from connections.
+	unregister chan *connection
+}
+
+var wsHub = hub{
+	broadcast:   make(chan []byte),
+	register:    make(chan *connection),
+	unregister:  make(chan *connection),
+	connections: make(map[*connection]bool),
+}
+
+func (h *hub) run() {
 	for {
-		messageType, p, err := conn.ReadMessage()
-		if err != nil {
-			return
-		}
-
-		print_binary(p)
-
-		err = conn.WriteMessage(messageType, p)
-		if err != nil {
-			return
+		select {
+		case c := <-h.register:
+			h.connections[c] = true
+		case c := <-h.unregister:
+			if _, ok := h.connections[c]; ok {
+				delete(h.connections, c)
+				close(c.send)
+			}
+		case m := <-h.broadcast:
+			for c := range h.connections {
+				select {
+				case c.send <- m:
+				default:
+					close(c.send)
+					delete(h.connections, c)
+				}
+			}
 		}
 	}
+}
+
+func (h hub) Write(p []byte) (n int, err error) {
+	h.broadcast <- p
+	return len(p), nil
 }
 
 func startHTTP() {
-	http.HandleFunc("/ws", wsHandler)
+	go wsHub.run()
+
+	http.HandleFunc("/ws", serveWs)
 	http.Handle("/", http.FileServer(assetFS()))
-	http.HandleFunc("/pwd", handler)
+
 	// err := http.ListenAndServe(":8080", nil)
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
-		panic("Error: " + err.Error())
+		logger.Fatal("ListenAndServe: ", err)
 	}
 }

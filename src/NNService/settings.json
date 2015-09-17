@@ -9,5 +9,6 @@
     "Days_before_delete": 365,
     "Max_display_count": 10,
     "Update_machines_info_interval": 60000,
-    "ServerAddr": "192.168.1.21"
+    "ServerAddr": "192.168.1.21",
+    "LogPath": "./log/"
 }

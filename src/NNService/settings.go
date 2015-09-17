@@ -27,6 +27,7 @@ type DBSettings struct {
 
 type ServerSettings struct {
 	Port_to_listen int16
+	LogPath        string
 }
 
 var globalDBSettings DBSettings
