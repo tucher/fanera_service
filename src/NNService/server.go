@@ -51,7 +51,6 @@ func handleRequest(conn net.Conn) {
 	conn.Close()
 
 	var dataBytes = buf.Bytes()
-	logger.Printf("%v -> %v\n", fullRemoteAddr, hex.EncodeToString(dataBytes))
 
 	if bufLen >= 2 {
 
@@ -59,7 +58,7 @@ func handleRequest(conn net.Conn) {
 		for mIndex, machine := range machineInfos {
 			//searching by IP
 			if ipString == machine.M.Ip {
-				logger.Printf("%v -> detected '%v' by addr\n", fullRemoteAddr, machine.M.TableName)
+				// logger.Printf("%v -> detected '%v' by addr\n", fullRemoteAddr, machine.M.TableName)
 				machineIndex = mIndex
 				break
 			}
@@ -70,7 +69,7 @@ func handleRequest(conn net.Conn) {
 			binary.Read(&buf, binary.LittleEndian, &id)
 			for mIndex, machine := range machineInfos {
 				if id == machine.M.UniqueId {
-					logger.Printf("%v -> detected '%v' by ID\n", fullRemoteAddr, machine.M.TableName)
+					// logger.Printf("%v -> detected '%v' by ID\n", fullRemoteAddr, machine.M.TableName)
 					machineIndex = mIndex
 					break
 				}
@@ -124,14 +123,18 @@ func handleRequest(conn net.Conn) {
 
 				}
 			} else {
-				logger.Printf("%v -> %v bytes needed, has %v \n", fullRemoteAddr, bytesNeeded, buf.Len())
+				logger.Printf("%v -> %v\n", fullRemoteAddr, hex.EncodeToString(dataBytes))
+				logMachine(machineInfos[machineIndex].M.TableName, fmt.Sprintf("Too short data %v, needed %v bytes",
+					hex.EncodeToString(dataBytes), bytesNeeded))
+				// logger.Printf("%v -> %v bytes needed, has %v \n", fullRemoteAddr, bytesNeeded, buf.Len())
 
 			}
 		} else {
-			logger.Printf("%v -> unidentified machine\n", fullRemoteAddr)
+			logger.Printf("%v -> unidentified machine with data %v\n", fullRemoteAddr, hex.EncodeToString(dataBytes))
+
 		}
 	} else {
-		logger.Printf("%v -> Too few bytes received, something is wrong\n", fullRemoteAddr)
+		logger.Printf("%v -> Too few bytes received ('%v'), something is wrong\n", fullRemoteAddr, hex.EncodeToString(dataBytes))
 
 	}
 	connCounterChan <- -1
