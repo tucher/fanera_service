@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gorilla/websocket"
+	"html/template"
 	"net/http"
 	"time"
 )
@@ -154,11 +156,32 @@ func startHTTP() {
 	go wsHub.run()
 
 	http.HandleFunc("/ws", serveWs)
-	http.Handle("/", http.FileServer(assetFS()))
+	http.HandleFunc("/", indexHtml)
 
 	// err := http.ListenAndServe(":8080", nil)
-	err := http.ListenAndServe(":8080", nil)
+	err := http.ListenAndServe(fmt.Sprintf(":%v", globalServerSettings.WebinterfacePort), nil)
 	if err != nil {
 		logger.Fatal("ListenAndServe: ", err)
+	}
+}
+
+type IndexHtmlData struct {
+	Address string
+}
+
+func indexHtml(w http.ResponseWriter, r *http.Request) {
+	templ, err := Asset("data/index.html")
+
+	t := template.New("Index.html template")
+
+	t, err = t.Parse(string(templ))
+	if err != nil {
+		logger.Println(err.Error())
+	}
+
+	err = t.Execute(w, IndexHtmlData{Address: fmt.Sprintf("ws://localhost:%v/ws", globalServerSettings.WebinterfacePort)})
+
+	if err != nil {
+		logger.Println(err.Error())
 	}
 }

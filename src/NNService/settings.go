@@ -14,6 +14,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/kardianos/osext"
 	"io/ioutil"
 )
 
@@ -26,15 +27,21 @@ type DBSettings struct {
 }
 
 type ServerSettings struct {
-	Port_to_listen int16
-	LogPath        string
+	Port_to_listen   int16
+	LogPath          string
+	WebinterfacePort int16
 }
 
 var globalDBSettings DBSettings
 var globalServerSettings ServerSettings
 
 func readConfig() {
-	jsonBlob, err := ioutil.ReadFile("settings.json")
+	folderPath, err := osext.ExecutableFolder()
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Printf("%v\n", folderPath)
+	jsonBlob, err := ioutil.ReadFile(folderPath + "/settings.json")
 	if err != nil {
 		return
 	}

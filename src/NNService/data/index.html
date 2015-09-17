@@ -2,7 +2,7 @@
 <head>
 <meta charset="UTF-8" />
 <script>
-        var serversocket = new WebSocket("ws://localhost:8080/ws");
+        var serversocket = new WebSocket("{{.Address}}");
         var fieldMap = {};
         serversocket.onopen = function() {
                 serversocket.send("Connection init");

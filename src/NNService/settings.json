@@ -10,5 +10,6 @@
     "Max_display_count": 10,
     "Update_machines_info_interval": 60000,
     "ServerAddr": "192.168.1.21",
-    "LogPath": "./log/"
+    "LogPath": "./log/",
+    "WebinterfacePort": 8080
 }

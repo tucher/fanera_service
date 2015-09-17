@@ -120,6 +120,6 @@ func createTable(mInfo MachineInfo) {
 	logger.Printf("Creating table %v\n", mInfo.M.TableName)
 	_, err := ServerDBHandle.DB().Query(mInfo.CreateTableQuery)
 	if err != nil {
-		logger.Println("Cant exec sql: ", err.Error())
+		logger.Println("Cant exec sql: ", mInfo.CreateTableQuery, err.Error())
 	}
 }

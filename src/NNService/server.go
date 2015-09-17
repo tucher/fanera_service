@@ -16,21 +16,22 @@ func startMainServer() {
 	log.SetOutput(wsHub)
 	l, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%v", globalServerSettings.Port_to_listen))
 	if err != nil {
-		logger.Println("Error listening:", err.Error())
-	}
-	go counter()
-	// Close the listener when the application closes.
-	defer l.Close()
-	logger.Println("Listening on " + fmt.Sprintf("0.0.0.0:%v", globalServerSettings.Port_to_listen))
-	for {
-		// Listen for an incoming connection.
-		conn, err := l.Accept()
-		if err != nil {
-			logger.Println("Error accepting: ", err.Error())
-		} else {
-			// Handle connections in a new goroutine.
-			conn.SetDeadline(time.Now().Add(5 * time.Second))
-			go handleRequest(conn)
+		logger.Fatal("Error listening:", err.Error())
+	} else {
+		go counter()
+		// Close the listener when the application closes.
+		defer l.Close()
+		logger.Println("Listening on " + fmt.Sprintf("0.0.0.0:%v", globalServerSettings.Port_to_listen))
+		for {
+			// Listen for an incoming connection.
+			conn, err := l.Accept()
+			if err != nil {
+				logger.Println("Error accepting: ", err.Error())
+			} else {
+				// Handle connections in a new goroutine.
+				conn.SetDeadline(time.Now().Add(5 * time.Second))
+				go handleRequest(conn)
+			}
 		}
 	}
 }
@@ -66,7 +67,7 @@ func handleRequest(conn net.Conn) {
 		if machineIndex == -1 {
 			//searching by ID
 			var id int16
-			binary.Read(&buf, binary.BigEndian, &id)
+			binary.Read(&buf, binary.LittleEndian, &id)
 			for mIndex, machine := range machineInfos {
 				if id == machine.M.UniqueId {
 					logger.Printf("%v -> detected '%v' by ID\n", fullRemoteAddr, machine.M.TableName)
@@ -93,17 +94,18 @@ func handleRequest(conn net.Conn) {
 						switch {
 						case field.FieldSize == 2:
 							var val int16
-							binary.Read(&buf, binary.LittleEndian, &val)
+							binary.Read(&buf, binary.BigEndian, &val)
 							valuesMap[field.FieldName] = fmt.Sprintf("%v", int64(val))
 						case field.FieldSize == 4:
 							var val int32
-							binary.Read(&buf, binary.LittleEndian, &val)
+							binary.Read(&buf, binary.BigEndian, &val)
 							valuesMap[field.FieldName] = fmt.Sprintf("%v", int64(val))
 						}
 					}
 				}
-
-				valuesMap["timestamp"] = time.Now().Format(time.RFC3339)
+				timeStr := time.Now().Format(time.RFC3339)
+				timeStr = timeStr[:len(timeStr)-6] // remove timezone
+				valuesMap["timestamp"] = timeStr
 
 				//building query
 				q := machineInfos[machineIndex].InsertRowQuery
@@ -114,7 +116,7 @@ func handleRequest(conn net.Conn) {
 
 				_, err = ServerDBHandle.DB().Exec(q)
 				if err != nil {
-					logger.Println("Cant exec sql: ", err.Error())
+					logger.Println(q, "\nCant exec sql: ", err.Error())
 
 				} else {
 					// logger.Printf("%v added to %v\n", valuesMap, machineInfos[machineIndex].M.TableName)

@@ -174,7 +174,7 @@ func send() {
 		machine := machineInfos[mIndex]
 		if machine.M.Ip[0] == '_' {
 			fmt.Println("By ID")
-			binary.Write(conn, binary.BigEndian, int16(machine.M.UniqueId))
+			binary.Write(conn, binary.LittleEndian, int16(machine.M.UniqueId))
 		}
 
 		for fI, field := range machine.Fields {
@@ -182,9 +182,9 @@ func send() {
 			case field.FieldType == "INT":
 				switch {
 				case field.FieldSize == 2:
-					binary.Write(conn, binary.LittleEndian, int16(1000+fI))
+					binary.Write(conn, binary.BigEndian, int16(1000+fI))
 				case field.FieldSize == 4:
-					binary.Write(conn, binary.LittleEndian, int32(1000+fI))
+					binary.Write(conn, binary.BigEndian, int32(1000+fI))
 				}
 			}
 		}
