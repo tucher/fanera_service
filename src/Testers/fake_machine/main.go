@@ -121,6 +121,26 @@ var totalSent int
 var activeConnections int
 
 func main() {
+	fmt.Println("123")
+	ifaces, err := net.Interfaces()
+	// handle err
+	for _, i := range ifaces {
+		addrs, _ := i.Addrs()
+		// handle err
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			// process IP address
+			fmt.Println(ip.String())
+		}
+	}
+	fmt.Println("321")
+
 	totalSent = 0
 	jsonBlob, err := ioutil.ReadFile("settings.json")
 	if err != nil {

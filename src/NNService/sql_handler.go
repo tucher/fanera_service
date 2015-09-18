@@ -13,7 +13,7 @@ type Machine struct {
 	ID        int
 	Ip        string
 	TableName string
-	UniqueId  int16
+	UniqueId  uint16
 	Title     string
 }
 
@@ -86,8 +86,20 @@ func downloadMachinesFrameSchema() {
 	for _, machine := range machines {
 		// fmt.Printf("\n\n\n%v) %+v\n", m_index, machine)
 
-		var fields []MachineFrameField
-		ServerDBHandle.Where(&MachineFrameField{MachineId: machine.ID}).Find(&fields)
+		var fieldsUnordered []MachineFrameField
+		ServerDBHandle.Where(&MachineFrameField{MachineId: machine.ID}).Find(&fieldsUnordered)
+
+		fields := make([]MachineFrameField, len(fieldsUnordered))
+		for fI, fV := range fieldsUnordered {
+			if fV.FieldIndex < len(fields) {
+				fields[fV.FieldIndex] = fV
+			} else {
+				logger.Println("Error while handling machines structure")
+			}
+			if fI != fV.FieldIndex {
+				// logger.Println(fV.FieldName)
+			}
+		}
 
 		createTableQuery := fmt.Sprintf("CREATE TABLE %v ( `id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, timestamp TIMESTAMP, ", machine.TableName)
 		insertQuery := fmt.Sprintf("INSERT INTO %v ( timestamp, ", machine.TableName)

@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"github.com/gorilla/websocket"
+	"github.com/kardianos/osext"
 	"html/template"
+	"net"
 	"net/http"
 	"time"
 )
@@ -25,6 +27,7 @@ const (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
 // connection is an middleman between the websocket connection and the hub.
@@ -152,21 +155,58 @@ func (h hub) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
+func getIPAddresses() []string {
+	var ipAddresses []string
+	ifaces, err := net.Interfaces()
+	if err == nil {
+		for _, i := range ifaces {
+
+			addrs, _ := i.Addrs()
+			// handle err
+			for _, addr := range addrs {
+				// var ip net.IP
+				switch v := addr.(type) {
+				case *net.IPNet:
+					// 	ip = v.IP
+					if v.IP.To4() != nil {
+						ipAddresses = append(ipAddresses, v.IP.String())
+					}
+				case *net.IPAddr:
+					// ip = v.IP
+
+				}
+				// process IP address
+			}
+		}
+	}
+	return ipAddresses
+}
+
 func startHTTP() {
 	go wsHub.run()
+
+	// logger.Println("IP Addresses: ", getIPAddresses())
 
 	http.HandleFunc("/ws", serveWs)
 	http.HandleFunc("/", indexHtml)
 
-	// err := http.ListenAndServe(":8080", nil)
-	err := http.ListenAndServe(fmt.Sprintf(":%v", globalServerSettings.WebinterfacePort), nil)
+	folderPath, err := osext.ExecutableFolder()
 	if err != nil {
-		logger.Fatal("ListenAndServe: ", err)
+		fmt.Println(err)
+	}
+	fmt.Println(folderPath + "\\log")
+	http.Handle("/log/", http.StripPrefix("/log/", http.FileServer(http.Dir(folderPath+"\\log"))))
+
+	// err := http.ListenAndServe(":8080", nil)
+	err1 := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%v", globalServerSettings.WebinterfacePort), nil)
+	if err1 != nil {
+		logger.Fatal("ListenAndServe: ", err1)
 	}
 }
 
 type IndexHtmlData struct {
-	Address string
+	Addresses []string
+	Port      int16
 }
 
 func indexHtml(w http.ResponseWriter, r *http.Request) {
@@ -179,7 +219,9 @@ func indexHtml(w http.ResponseWriter, r *http.Request) {
 		logger.Println(err.Error())
 	}
 
-	err = t.Execute(w, IndexHtmlData{Address: fmt.Sprintf("ws://localhost:%v/ws", globalServerSettings.WebinterfacePort)})
+	err = t.Execute(w, IndexHtmlData{
+		Addresses: getIPAddresses(),
+		Port:      globalServerSettings.WebinterfacePort})
 
 	if err != nil {
 		logger.Println(err.Error())

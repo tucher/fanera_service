@@ -11,5 +11,6 @@
     "Update_machines_info_interval": 60000,
     "ServerAddr": "192.168.1.21",
     "LogPath": "./log/",
-    "WebinterfacePort": 8080
+    "WebinterfacePort": 8080,
+    "IgnoredIpAddrList": ["192.168.0.1", "192.168.0.10"]
 }

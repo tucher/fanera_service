@@ -2,47 +2,60 @@
 <head>
 <meta charset="UTF-8" />
 <script>
-        var serversocket = new WebSocket("{{.Address}}");
         var fieldMap = {};
-        serversocket.onopen = function() {
-                serversocket.send("Connection init");
+        function createWnd(caption) {
+
+                var capt = document.createElement("div");        
+                var t = document.createTextNode(caption);
+                capt.appendChild(t);                               
+                document.body.appendChild(capt);
+                capt.style.fontSize = "xx-large";
+                var txtArea = document.createElement("textarea"); 
+                document.body.appendChild(txtArea);
+                document.body.appendChild(document.createElement("br"));
+                document.body.appendChild(document.createElement("br"));
+                // txtArea.style.height = 'auto';
+                txtArea.style.width = '900px';
+                txtArea.style.height = '200px';
+                txtArea.style.resize = 'vertical';
+                fieldMap[caption] = txtArea
         }
+
+        var serversocket = new WebSocket("ws://" + window.location.host + "/ws");
+        serversocket.onopen = function() {
+               
+                console.log(this.url);
+                
+        }
+        serversocket.onmessage = function(e) {       
+            var obj = JSON.parse(e.data);
+            if(fieldMap[obj.from] == undefined) {
+                    console.log("creating")
+                    createWnd(obj.from)
+            }
+            if(typeof(obj.msg) != 'string')
+                    fieldMap[obj.from].value += JSON.stringify(obj.msg, null, '\t') + "\n";
+            else
+                    fieldMap[obj.from].value += obj.msg+ "\n";
+
+            fieldMap[obj.from].scrollTop = fieldMap[obj.from].scrollHeight;
+        
+        };
+        
  
         // Write message on receive
-        serversocket.onmessage = function(e) {
-                var obj = JSON.parse(e.data);
-                if(fieldMap[obj.from] == undefined) {
-                        console.log("creating")
-
-                        var capt = document.createElement("div");        
-                        var t = document.createTextNode(obj.from);
-                        capt.appendChild(t);                               
-                        document.body.appendChild(capt);
-                        capt.style.fontSize = "xx-large";
-                        var txtArea = document.createElement("textarea"); 
-                        document.body.appendChild(txtArea);
-                        document.body.appendChild(document.createElement("br"));
-                        document.body.appendChild(document.createElement("br"));
-                        // txtArea.style.height = 'auto';
-                        txtArea.style.width = '900px';
-                        txtArea.style.height = '200px';
-                        txtArea.style.resize = 'vertical';
-                        fieldMap[obj.from] = txtArea
-                }
-                if(typeof(obj.msg) != 'string')
-                        fieldMap[obj.from].value += JSON.stringify(obj.msg, null, '\t') + "\n";
-                else
-                        fieldMap[obj.from].value += obj.msg+ "\n";
-
-                fieldMap[obj.from].scrollTop = fieldMap[obj.from].scrollHeight;
-                
-        };
+        
  
- 
+          document.addEventListener("DOMContentLoaded", function(event) {
+            createWnd("");
+          });
 </script>
 </head>
  
 <body>
+
         <div id='comms'></div>
+    <a href="/log">Browse logs</a>
+       
 </body>
 </html>
