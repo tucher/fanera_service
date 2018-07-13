@@ -3,11 +3,12 @@ package main
 import (
 	// "database/sql"
 	"fmt"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
 )
 
-var ServerDBHandle gorm.DB
+var ServerDBHandle *gorm.DB
 
 type Machine struct {
 	ID        int
